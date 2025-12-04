@@ -16,7 +16,7 @@ from batchgenerators.dataloading.nondet_multi_threaded_augmenter import NonDetMu
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from batchgenerators.utilities.file_and_folder_operations import join, load_json, isfile, save_json, maybe_mkdir_p
 from batchgeneratorsv2.helpers.scalar_type import RandomScalar
-from batchgeneratorsv2.transforms.base.basic_transform import BasicTransform
+from batchgeneratorsv2.transforms.base.basic_transform import BasicTransform, ImageOnlyTransform
 from batchgeneratorsv2.transforms.intensity.brightness import MultiplicativeBrightnessTransform
 from batchgeneratorsv2.transforms.intensity.contrast import ContrastTransform, BGContrast
 from batchgeneratorsv2.transforms.intensity.gamma import GammaTransform
@@ -66,10 +66,13 @@ from nnunetv2.utilities.helpers import empty_cache, dummy_context
 from nnunetv2.utilities.label_handling.label_handling import convert_labelmap_to_one_hot, determine_num_input_channels
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
 
+from .SwinTransformer import SwinTransformerV2, SwinTransformerV3, SwinTransformerV4
+from dynamic_network_architectures.architectures.unet import PlainConvUNet
+from collections import OrderedDict
 
 class nnUNetTrainer(object):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
-                 device: torch.device = torch.device('cuda')):
+                 device: torch.device = torch.device('cuda'), pretrained_encoder = None):
         # From https://grugbrain.dev/. Worth a read ya big brains ;-)
 
         # apex predator of grug is complexity
@@ -86,7 +89,7 @@ class nnUNetTrainer(object):
         # OK OK I am guilty. But I tried.
         # https://www.osnews.com/images/comics/wtfm.jpg
         # https://i.pinimg.com/originals/26/b2/50/26b250a738ea4abc7a5af4d42ad93af0.jpg
-
+        self.pretrained_encoder = pretrained_encoder
         self.is_ddp = dist.is_available() and dist.is_initialized()
         self.local_rank = 0 if not self.is_ddp else dist.get_rank()
 
@@ -148,7 +151,7 @@ class nnUNetTrainer(object):
         self.probabilistic_oversampling = False
         self.num_iterations_per_epoch = 250
         self.num_val_iterations_per_epoch = 50
-        self.num_epochs = 1000
+        self.num_epochs = 200
         self.current_epoch = 0
         self.enable_deep_supervision = True
 
@@ -212,7 +215,8 @@ class nnUNetTrainer(object):
                 self.configuration_manager.network_arch_init_kwargs_req_import,
                 self.num_input_channels,
                 self.label_manager.num_segmentation_heads,
-                self.enable_deep_supervision
+                self.enable_deep_supervision,
+                self.pretrained_encoder,
             ).to(self.device)
             # compile network for free speedup
             if self._do_i_compile():
@@ -306,7 +310,8 @@ class nnUNetTrainer(object):
                                    arch_init_kwargs_req_import: Union[List[str], Tuple[str, ...]],
                                    num_input_channels: int,
                                    num_output_channels: int,
-                                   enable_deep_supervision: bool = True) -> nn.Module:
+                                   enable_deep_supervision: bool = True,
+                                   pretrined_encoder = None) -> nn.Module:
         """
         This is where you build the architecture according to the plans. There is no obligation to use
         get_network_from_plans, this is just a utility we use for the nnU-Net default architectures. You can do what
