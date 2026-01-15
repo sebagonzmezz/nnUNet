@@ -66,13 +66,10 @@ from nnunetv2.utilities.helpers import empty_cache, dummy_context
 from nnunetv2.utilities.label_handling.label_handling import convert_labelmap_to_one_hot, determine_num_input_channels
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
 
-from .SwinTransformer import SwinTransformerV2, SwinTransformerV3, SwinTransformerV4
-from dynamic_network_architectures.architectures.unet import PlainConvUNet
-from collections import OrderedDict
-
 class nnUNetTrainer(object):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
-                 device: torch.device = torch.device('cuda'), pretrained_encoder = None):
+                 device: torch.device = torch.device('cuda'), pretrained_encoder = None,
+                 freeze_encoder = True):
         # From https://grugbrain.dev/. Worth a read ya big brains ;-)
 
         # apex predator of grug is complexity
@@ -90,6 +87,7 @@ class nnUNetTrainer(object):
         # https://www.osnews.com/images/comics/wtfm.jpg
         # https://i.pinimg.com/originals/26/b2/50/26b250a738ea4abc7a5af4d42ad93af0.jpg
         self.pretrained_encoder = pretrained_encoder
+        self.freeze_encoder= freeze_encoder
         self.is_ddp = dist.is_available() and dist.is_initialized()
         self.local_rank = 0 if not self.is_ddp else dist.get_rank()
 
@@ -217,6 +215,7 @@ class nnUNetTrainer(object):
                 self.label_manager.num_segmentation_heads,
                 self.enable_deep_supervision,
                 self.pretrained_encoder,
+                self.freeze_encoder,
             ).to(self.device)
             # compile network for free speedup
             if self._do_i_compile():
@@ -311,7 +310,8 @@ class nnUNetTrainer(object):
                                    num_input_channels: int,
                                    num_output_channels: int,
                                    enable_deep_supervision: bool = True,
-                                   pretrined_encoder = None) -> nn.Module:
+                                   pretrined_encoder = None,
+                                   freeze_encoder = True) -> nn.Module:
         """
         This is where you build the architecture according to the plans. There is no obligation to use
         get_network_from_plans, this is just a utility we use for the nnU-Net default architectures. You can do what

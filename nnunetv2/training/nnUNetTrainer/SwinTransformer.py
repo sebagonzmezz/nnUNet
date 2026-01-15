@@ -895,13 +895,13 @@ class SwinTransformerWrapper(nn.Module):
     def forward(self, x, normalize=True, return_all_tokens=None, mask=None):
         pass
 
-class SwinTransformerV2(SwinTransformerWrapper):
+class SwinTransformerCatIn(SwinTransformerWrapper):
     def forward(self, x, normalize=True, return_all_tokens=None, mask=None):
         s0 = x
         output = self.swin(x, normalize, return_all_tokens, mask)
         return [s0, *output]
     
-class SwinTransformerV3(SwinTransformerWrapper):
+class SwinTransformerCatEnc(SwinTransformerWrapper):
     def __init__(self, conv_output_channels, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.conv_layer = StackedConvBlocks(
@@ -926,7 +926,7 @@ class SwinTransformerV3(SwinTransformerWrapper):
         conv_output = self.conv_layer(x)
         return [conv_output, *swin_output]
     
-class SwinTransformerV4(SwinTransformerWrapper):
+class SwinTransformerUpAll(SwinTransformerWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         channels = [48, 96, 192, 384]
@@ -952,6 +952,23 @@ class SwinTransformerV4(SwinTransformerWrapper):
             output.append(upscaled)
         output.append(swin_out[-1])
         return output
+    
+class SwinTransformerUpLast(SwinTransformerWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.upscale = ConvTranspose3d(
+            in_channels=48,
+            out_channels=12,
+            kernel_size=4,
+            stride=4,
+            bias=True,
+        )
+
+    def forward(self, x, *args, **kwargs):
+        swin_out = self.swin(x, *args, **kwargs)
+        first = swin_out[0]
+        upscaled = self.upscale(first)
+        return [upscaled, *swin_out]
 
 
 if __name__ == "__main__":
