@@ -78,10 +78,10 @@ nnUNetv2_train 001 G2_up-all 0 -tr G2_up -pretrained_encoder /path/to/encoder/we
 Training can only be performed on a single fold at a time, so to train all folds sequentially:
 
 ```bash
-nnUNetv2_train 001 3d_fullres 0 && \
-nnUNetv2_train 001 3d_fullres 1 && \
-nnUNetv2_train 001 3d_fullres 2 && \
-nnUNetv2_train 001 3d_fullres 3 && \
+nnUNetv2_train 001 3d_fullres 0; \
+nnUNetv2_train 001 3d_fullres 1; \
+nnUNetv2_train 001 3d_fullres 2; \
+nnUNetv2_train 001 3d_fullres 3; \
 nnUNetv2_train 001 3d_fullres 4
 ```
 
