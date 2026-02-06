@@ -116,7 +116,7 @@ def main():
         "--workers",
         type=int,
         default=4,
-        help="Number of parallel worker processes (default: all CPUs)"
+        help="Number of parallel worker processes"
     )
 
     parser.add_argument(
@@ -129,7 +129,7 @@ def main():
     args = parser.parse_args()
 
     if args.output is None:
-        args.output = Path(args.pred_dir) / "metrics_per_label.csv"
+        args.output = Path(args.pred_dir) / "metrics.csv"
 
     df = compute_metrics(
         args.gt_dir,

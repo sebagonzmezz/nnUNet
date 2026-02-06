@@ -659,11 +659,17 @@
             },
             "batch_dice": false
         },
+        "G2_enc_LoRA": {
+            "inherits_from": "G2_enc"
+        },
         "G2_enc_full": {
             "inherits_from": "G2_enc"
         },
         "G2-p_enc": {
             "inherits_from": "G2_enc"
+        },
+        "G2-p_enc_LoRA": {
+            "inherits_from": "G2-p_enc"
         },
         "G2-p_enc_full": {
             "inherits_from": "G2-p_enc"

@@ -52,7 +52,8 @@ dependencies = [
     "batchgeneratorsv2>=0.3.0",
     "einops",
     "blosc2>=3.0.0b1",
-    "monai==1.5.0"
+    "monai==1.5.0",
+    "peft==0.18.1"
 ]
 
 [project.urls]
@@ -97,3 +98,7 @@ build-backend = "setuptools.build_meta"
 skip = '.git,*.pdf,*.svg'
 #
 # ignore-words-list = ''
+
+[tool.setuptools.packages.find]
+include = ["nnunetv2*"]
+exclude = ["dataset_files*"]

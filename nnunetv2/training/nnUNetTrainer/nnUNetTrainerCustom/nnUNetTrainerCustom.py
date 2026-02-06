@@ -1,4 +1,5 @@
 from typing import Tuple, Union, List
+from peft import LoraConfig, get_peft_model
 
 from torch import nn
 
@@ -180,6 +181,59 @@ class G2_up_last(nnUNetTrainer):
             freeze_swin=freeze_encoder,
         )
         print(f"Using pretrained encoder weights from: {pretrained_encoder}")
+        model.encoder = encoder
+        total_params = sum(p.numel() for p in model.encoder.parameters())
+        trainable_params = sum(p.numel() for p in model.encoder.parameters() if p.requires_grad)
+        print(f"Total parameters in encoder: {total_params:,}")
+        print(f"Trainable parameters in encoder: {trainable_params:,}")
+        return model
+
+class G2_enc_LoRA(nnUNetTrainer):
+    @staticmethod
+    def build_network_architecture(architecture_class_name: str,
+                                   arch_init_kwargs: dict,
+                                   arch_init_kwargs_req_import: Union[List[str], Tuple[str, ...]],
+                                   num_input_channels: int,
+                                   num_output_channels: int,
+                                   enable_deep_supervision: bool = True,
+                                   pretrained_encoder = None,
+                                   freeze_encoder = True) -> nn.Module:
+        model = get_network_from_plans(
+            architecture_class_name,
+            arch_init_kwargs,
+            arch_init_kwargs_req_import,
+            num_input_channels,
+            num_output_channels,
+            allow_init=True,
+            deep_supervision=enable_deep_supervision)
+        encoder = SwinTransformerCatEnc(
+            conv_output_channels=24,
+            in_chans=1,
+            embed_dim=48,
+            window_size=(7, 7, 7),
+            patch_size=(4, 4, 4),
+            depths=[2, 2, 2, 2],
+            num_heads=[3, 6, 12, 24],
+            mlp_ratio=4.0,
+            qkv_bias=True,
+            drop_rate=0.0,
+            attn_drop_rate=0.0,
+            drop_path_rate=0.0,
+            norm_layer=nn.LayerNorm,
+            spatial_dims=3,
+            return_all_tokens=False,
+            masked_im_modeling=True,
+            swin_weights_path=pretrained_encoder,
+            freeze_swin=freeze_encoder,
+        )
+        print(f"Using pretrained encoder weights from: {pretrained_encoder}")
+        config = LoraConfig(
+            r=16,
+            lora_alpha=32,
+            target_modules=["qkv", "proj"],
+            lora_dropout=0.0
+        )
+        lora_swin = get_peft_model(encoder.swin, config)
         model.encoder = encoder
         total_params = sum(p.numel() for p in model.encoder.parameters())
         trainable_params = sum(p.numel() for p in model.encoder.parameters() if p.requires_grad)
