@@ -46,19 +46,23 @@ def process_case(pred_path, gt_dir, labels, cldice_flag):
 
     case_id = pred_path.stem.replace(".nii", "")
     case_result = {}
+    neg_case_result = {}
 
     for label in labels:
         gt_bin = (gt == label)
         pred_bin = (pred == label)
 
-        case_result[f"label_{label}_iou"] = compute_iou(gt_bin, pred_bin)
-        case_result[f"label_{label}_dice"] = compute_dice(gt_bin, pred_bin)
-
-        if cldice_flag:
-            case_result[f"label_{label}_cldice"] = compute_cldice(gt_bin, pred_bin)
+        if gt_bin.sum() > 0:
+            case_result[f"label_{label}_iou"] = compute_iou(gt_bin, pred_bin)
+            case_result[f"label_{label}_dice"] = compute_dice(gt_bin, pred_bin)
+            if cldice_flag:
+                case_result[f"label_{label}_cldice"] = compute_cldice(gt_bin, pred_bin)
+        else:
+            neg_case_result[f"label_{label}_size"] = pred_bin.sum()
 
     print(f"{pred_path} processed")
-    return case_id, case_result
+    fold = str(pred_path).split("fold")[-1][1]
+    return case_id, fold, case_result, neg_case_result
 
 def compute_metrics(gt_dir, pred_dir, num_folds, labels, cldice_flag, workers):
     if num_folds is not None:
@@ -70,6 +74,7 @@ def compute_metrics(gt_dir, pred_dir, num_folds, labels, cldice_flag, workers):
         pred_paths = list(Path(pred_dir).rglob("*.nii.gz"))
 
     results = {}
+    neg_results = {}
 
     with ProcessPoolExecutor(max_workers=workers) as executor:
         futures = [
@@ -84,10 +89,14 @@ def compute_metrics(gt_dir, pred_dir, num_folds, labels, cldice_flag, workers):
         ]
 
         for future in futures:
-            case_id, case_result = future.result()
-            results[case_id] = case_result
+            case_id, fold, case_result, neg_case_result = future.result()
+            results[f"{fold}_{case_id}"] = case_result
+            neg_results[f"{fold}_{case_id}"] = neg_case_result
 
-    return pd.DataFrame(results).T
+    neg_df = pd.DataFrame(neg_results).T
+    neg_df = neg_df[neg_df.notna().all(axis=1)]
+
+    return pd.DataFrame(results).T, neg_df
 
 def main():
     parser = argparse.ArgumentParser(
@@ -130,8 +139,9 @@ def main():
 
     if args.output is None:
         args.output = Path(args.pred_dir) / "metrics.csv"
+        neg_output = Path(args.pred_dir) / "neg_metrics.csv"
 
-    df = compute_metrics(
+    df, neg_df = compute_metrics(
         args.gt_dir,
         args.pred_dir,
         args.num_folds,
@@ -142,6 +152,9 @@ def main():
 
     df.to_csv(args.output, index=True)
     print(df.describe())
+    if not neg_df.empty:
+        neg_df.to_csv(neg_output, index=True)
+        print(neg_df)
 
 
 if __name__ == "__main__":
