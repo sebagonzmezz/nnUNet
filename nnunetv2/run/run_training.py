@@ -36,7 +36,9 @@ def get_trainer_from_args(dataset_name_or_id: Union[int, str],
                           plans_identifier: str = 'nnUNetPlans',
                           device: torch.device = torch.device('cuda'),
                           pretrained_encoder = None,
-                          freeze_encoder = True):
+                          freeze_encoder = True,
+                          lora_r = 16,
+                          lora_alpha= 32):
     # load nnunet class and do sanity checks
     nnunet_trainer = recursive_find_python_class(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
                                                 trainer_name, 'nnunetv2.training.nnUNetTrainer')
@@ -66,7 +68,7 @@ def get_trainer_from_args(dataset_name_or_id: Union[int, str],
     dataset_json = load_json(join(preprocessed_dataset_folder_base, 'dataset.json'))
     nnunet_trainer = nnunet_trainer(plans=plans, configuration=configuration, fold=fold,
                                     dataset_json=dataset_json, device=device, pretrained_encoder=pretrained_encoder,
-                                    freeze_encoder=freeze_encoder)
+                                    freeze_encoder=freeze_encoder, lora_r=lora_r, lora_alpha=lora_alpha)
     return nnunet_trainer
 
 
@@ -150,7 +152,9 @@ def run_training(dataset_name_or_id: Union[str, int],
                  val_with_best: bool = False,
                  device: torch.device = torch.device('cuda'),
                  pretrained_encoder = None,
-                 freeze_encoder = True):
+                 freeze_encoder = True,
+                 lora_r = 16,
+                 lora_alpha = 32):
     if plans_identifier == 'nnUNetPlans':
         print("\n############################\n"
               "INFO: You are using the old nnU-Net default plans. We have updated our recommendations. "
@@ -196,7 +200,7 @@ def run_training(dataset_name_or_id: Union[str, int],
     else:
         nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, trainer_class_name,
                                                plans_identifier, device=device, pretrained_encoder=pretrained_encoder,
-                                               freeze_encoder=freeze_encoder)
+                                               freeze_encoder=freeze_encoder, lora_r=lora_r, lora_alpha=lora_alpha)
 
         if disable_checkpointing:
             nnunet_trainer.disable_checkpointing = disable_checkpointing
@@ -258,6 +262,8 @@ def run_training_entry():
                         help='[OPTIONAL] Path to pretrained *encoder* weights (not full nnUNet checkpoint).'
     )
     parser.add_argument('--freeze_encoder', action='store_true', help='Freeze the encoder')
+    parser.add_argument('--lora_r', type=int, help='r parameter for LoRA architecture')
+    parser.add_argument('--lora_alpha', type=int, help='alpha parameter for LoRA architecture')
     args = parser.parse_args()
 
     assert args.device in ['cpu', 'cuda', 'mps'], f'-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}.'
@@ -275,7 +281,8 @@ def run_training_entry():
 
     run_training(args.dataset_name_or_id, args.configuration, args.fold, args.tr, args.p, args.pretrained_weights,
                  args.num_gpus, args.npz, args.c, args.val, args.disable_checkpointing, args.val_best,
-                 device=device, pretrained_encoder=args.pretrained_encoder, freeze_encoder=args.freeze_encoder)
+                 device=device, pretrained_encoder=args.pretrained_encoder, freeze_encoder=args.freeze_encoder,
+                 lora_r=args.lora_r, lora_alpha=args.lora_alpha)
 
 
 if __name__ == '__main__':

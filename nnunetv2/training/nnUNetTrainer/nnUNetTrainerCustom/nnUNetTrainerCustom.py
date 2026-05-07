@@ -16,7 +16,8 @@ class G2_in(nnUNetTrainer):
                                    num_output_channels: int,
                                    enable_deep_supervision: bool = True,
                                    pretrained_encoder = None,
-                                   freeze_encoder = True) -> nn.Module:
+                                   freeze_encoder = True,
+                                   **kargs) -> nn.Module:
         model = get_network_from_plans(
             architecture_class_name,
             arch_init_kwargs,
@@ -61,7 +62,8 @@ class G2_enc(nnUNetTrainer):
                                    num_output_channels: int,
                                    enable_deep_supervision: bool = True,
                                    pretrained_encoder = None,
-                                   freeze_encoder = True) -> nn.Module:
+                                   freeze_encoder = True,
+                                   **kargs) -> nn.Module:
         model = get_network_from_plans(
             architecture_class_name,
             arch_init_kwargs,
@@ -107,7 +109,8 @@ class G2_up_all(nnUNetTrainer):
                                    num_output_channels: int,
                                    enable_deep_supervision: bool = True,
                                    pretrained_encoder = None,
-                                   freeze_encoder = True) -> nn.Module:
+                                   freeze_encoder = True,
+                                   **kargs) -> nn.Module:
         model = get_network_from_plans(
             architecture_class_name,
             arch_init_kwargs,
@@ -152,7 +155,8 @@ class G2_up_last(nnUNetTrainer):
                                    num_output_channels: int,
                                    enable_deep_supervision: bool = True,
                                    pretrained_encoder = None,
-                                   freeze_encoder = True) -> nn.Module:
+                                   freeze_encoder = True,
+                                   **kargs) -> nn.Module:
         model = get_network_from_plans(
             architecture_class_name,
             arch_init_kwargs,
@@ -197,7 +201,9 @@ class G2_enc_LoRA(nnUNetTrainer):
                                    num_output_channels: int,
                                    enable_deep_supervision: bool = True,
                                    pretrained_encoder = None,
-                                   freeze_encoder = True) -> nn.Module:
+                                   freeze_encoder = True,
+                                   lora_r=16,
+                                   lora_alpha=32) -> nn.Module:
         model = get_network_from_plans(
             architecture_class_name,
             arch_init_kwargs,
@@ -228,8 +234,8 @@ class G2_enc_LoRA(nnUNetTrainer):
         )
         print(f"Using pretrained encoder weights from: {pretrained_encoder}")
         config = LoraConfig(
-            r=16,
-            lora_alpha=32,
+            r=lora_r,
+            lora_alpha=lora_alpha,
             target_modules=["qkv", "proj"],
             lora_dropout=0.0
         )
@@ -248,7 +254,10 @@ class random_encoder(nnUNetTrainer):
                                    arch_init_kwargs_req_import: Union[List[str], Tuple[str, ...]],
                                    num_input_channels: int,
                                    num_output_channels: int,
-                                   enable_deep_supervision: bool = True) -> nn.Module:
+                                   enable_deep_supervision: bool = True,
+                                   pretrained_encoder = None,
+                                   freeze_encoder = None,
+                                   **kargs) -> nn.Module:
         model = get_network_from_plans(
             architecture_class_name,
             arch_init_kwargs,

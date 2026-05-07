@@ -69,7 +69,7 @@ from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
 class nnUNetTrainer(object):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
                  device: torch.device = torch.device('cuda'), pretrained_encoder = None,
-                 freeze_encoder = True):
+                 freeze_encoder = True, lora_r = 32, lora_alpha = 16):
         # From https://grugbrain.dev/. Worth a read ya big brains ;-)
 
         # apex predator of grug is complexity
@@ -88,6 +88,8 @@ class nnUNetTrainer(object):
         # https://i.pinimg.com/originals/26/b2/50/26b250a738ea4abc7a5af4d42ad93af0.jpg
         self.pretrained_encoder = pretrained_encoder
         self.freeze_encoder= freeze_encoder
+        self.lora_r = lora_r
+        self.lora_alpha = lora_alpha
         self.is_ddp = dist.is_available() and dist.is_initialized()
         self.local_rank = 0 if not self.is_ddp else dist.get_rank()
 
@@ -214,8 +216,10 @@ class nnUNetTrainer(object):
                 self.num_input_channels,
                 self.label_manager.num_segmentation_heads,
                 self.enable_deep_supervision,
-                self.pretrained_encoder,
-                self.freeze_encoder,
+                pretrained_encoder=self.pretrained_encoder,
+                freeze_encoder=self.freeze_encoder,
+                lora_r=self.lora_r,
+                lora_alpha=self.lora_alpha
             ).to(self.device)
             # compile network for free speedup
             if self._do_i_compile():
@@ -310,8 +314,10 @@ class nnUNetTrainer(object):
                                    num_input_channels: int,
                                    num_output_channels: int,
                                    enable_deep_supervision: bool = True,
-                                   pretrined_encoder = None,
-                                   freeze_encoder = True) -> nn.Module:
+                                   pretrained_encoder = None,
+                                   freeze_encoder = True,
+                                   lora_r = 16,
+                                   lora_alpha = 32) -> nn.Module:
         """
         This is where you build the architecture according to the plans. There is no obligation to use
         get_network_from_plans, this is just a utility we use for the nnU-Net default architectures. You can do what
