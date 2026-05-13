@@ -45,7 +45,11 @@ class nnUNetPredictor(object):
                  device: torch.device = torch.device('cuda'),
                  verbose: bool = False,
                  verbose_preprocessing: bool = False,
-                 allow_tqdm: bool = True):
+                 allow_tqdm: bool = True,
+                 lora_r=None,
+                 lora_alpha=None):
+        self.lora_r = lora_r
+        self.lora_alpha = lora_alpha
         self.verbose = verbose
         self.verbose_preprocessing = verbose_preprocessing
         self.allow_tqdm = allow_tqdm
@@ -107,7 +111,9 @@ class nnUNetPredictor(object):
             configuration_manager.network_arch_init_kwargs_req_import,
             num_input_channels,
             plans_manager.get_label_manager(dataset_json).num_segmentation_heads,
-            enable_deep_supervision=False
+            enable_deep_supervision=False,
+            lora_r=self.lora_r,
+            lora_alpha=self.lora_alpha
         )
 
         self.plans_manager = plans_manager
@@ -930,6 +936,8 @@ def predict_entry_point():
     parser.add_argument('--disable_progress_bar', action='store_true', required=False, default=False,
                         help='Set this flag to disable progress bar. Recommended for HPC environments (non interactive '
                              'jobs)')
+    parser.add_argument('--lora_r', type=int, help='r parameter for LoRA architecture')
+    parser.add_argument('--lora_alpha', type=int, help='alpha parameter for LoRA architecture')
 
     print(
         "\n#######################################################################\nPlease cite the following paper "
@@ -971,7 +979,9 @@ def predict_entry_point():
                                 device=device,
                                 verbose=args.verbose,
                                 verbose_preprocessing=args.verbose,
-                                allow_tqdm=not args.disable_progress_bar)
+                                allow_tqdm=not args.disable_progress_bar,
+                                lora_r=args.lora_r,
+                                lora_alpha=args.lora_alpha)
     predictor.initialize_from_trained_model_folder(
         model_folder,
         args.f,
